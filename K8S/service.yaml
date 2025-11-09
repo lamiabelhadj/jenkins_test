@@ -1,14 +1,27 @@
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: my-node-app-service
+#   labels:
+#     app: my-node-app
+# spec:
+#   type: LoadBalancer
+#   selector:
+#     app: my-node-app
+#   ports:
+#   - protocol: TCP
+#     port: 80
+#     targetPort: 3000
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-node-app-service
-  labels:
-    app: my-node-app
+  name: mon-app-service
+  namespace: mon-app-namespace
 spec:
-  type: LoadBalancer
   selector:
-    app: my-node-app
+    app: mon-app
   ports:
   - protocol: TCP
     port: 80
     targetPort: 3000
+  type: ClusterIP

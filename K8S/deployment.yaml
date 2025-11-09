@@ -1,43 +1,66 @@
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: my-node-app
+#   labels:
+#     app: my-node-app
+# spec:
+#   replicas: 3
+#   selector:
+#     matchLabels:
+#       app: my-node-app
+#   template:
+#     metadata:
+#       labels:
+#         app: my-node-app
+#     spec:
+#       containers:
+#       - name: my-node-app
+#         image: lamyabelhadj/my-node-app:latest
+#         ports:
+#         - containerPort: 3000
+#         env:
+#         - name: NODE_ENV
+#           value: "production"
+#         resources:
+#           requests:
+#             memory: "64Mi"
+#             cpu: "50m"
+#           limits:
+#             memory: "128Mi"
+#             cpu: "100m"
+#         livenessProbe:
+#           httpGet:
+#             path: /health
+#             port: 3000
+#           initialDelaySeconds: 5
+#           periodSeconds: 10
+#         readinessProbe:
+#           httpGet:
+#             path: /health
+#             port: 3000
+#           initialDelaySeconds: 5
+#           periodSeconds: 5
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-node-app
-  labels:
-    app: my-node-app
+  name: mon-app
+  namespace: mon-app-namespace
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
-      app: my-node-app
+      app: mon-app
   template:
     metadata:
       labels:
-        app: my-node-app
+        app: mon-app
     spec:
       containers:
-      - name: my-node-app
-        image: lamyabelhadj/my-node-app:latest
+      - name: mon-app
+        image: votre-dockerhub/mon-app-securisee:latest
         ports:
         - containerPort: 3000
         env:
         - name: NODE_ENV
           value: "production"
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "50m"
-          limits:
-            memory: "128Mi"
-            cpu: "100m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 5
