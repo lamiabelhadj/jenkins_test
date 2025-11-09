@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: my-node-app
-        image: your-dockerhub-username/my-node-app:latest
+        image: lamyabelhadj/my-node-app:latest
         ports:
         - containerPort: 3000
         env:
