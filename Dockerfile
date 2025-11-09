@@ -14,30 +14,29 @@ RUN if [ -f package-lock.json ]; then npm ci --only=production --omit=dev; \
 COPY . .
 
 # -----------------------------
-# Stage 2: Production image with kubectl
+# Stage 2: Production image WITH kubectl
 # -----------------------------
 FROM node:20-bookworm-slim
 
-# Install kubectl (modern keyring method)
+# Install curl and fetch kubectl binary directly
 USER root
-RUN apt-get update && apt-get install -y curl gpg apt-transport-https \
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
-       | gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] \
-       https://apt.kubernetes.io/ kubernetes-xenial main" \
-       > /etc/apt/sources.list.d/kubernetes.list \
-    && apt-get update && apt-get install -y kubectl \
+RUN apt-get update \
+    && apt-get install -y curl ca-certificates \
+    && curl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+       -o /usr/local/bin/kubectl \
+    && chmod +x /usr/local/bin/kubectl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy app from builder
+# Runtime directory
 WORKDIR /usr/src/app
+
+# Copy built app from builder stage
 COPY --from=builder /usr/src/app ./
 
-# Expose port
+# Expose the application port
 EXPOSE 3000
 
-# Healthcheck (same as yours)
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD ["node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
 
