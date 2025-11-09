@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'lamyabelhadj/my-node-app'
         DOCKER_TAG   = 'latest'
+        KUBE_NAMESPACE = 'mon-app-namespace'
     }
 
     stages {
@@ -39,16 +40,41 @@ pipeline {
                 }
             }
         }
-
-        stage('Deploy to Kubernetes') {
+        stage('Déployer sur Kubernetes') {
             steps {
-                script {
-                    sh 'kubectl apply -f K8S/deployment.yaml'
-                    sh 'kubectl apply -f K8S/service.yaml'
-                    sh 'kubectl rollout status deployment/my-node-app'
+                withCredentials([
+                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE'),
+                    usernamePassword(credentialsId: 'dockerhub-creds', 
+                                   passwordVariable: 'DOCKER_PASSWORD', 
+                                   usernameVariable: 'DOCKER_USERNAME')
+                ]) {
+                    script {
+                        // Configurer l'accès Kubernetes
+                        sh """
+                            export KUBECONFIG=${KUBECONFIG_FILE}
+                            
+                            # Vérifier la connexion
+                            kubectl cluster-info
+                            kubectl get nodes
+                            
+                            # Créer le namespace s'il n'existe pas
+                            kubectl create namespace ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                            
+                            # Déployer les ressources
+                            kubectl apply -f k8s/ -n ${KUBE_NAMESPACE}
+                            
+                            # Vérifier le déploiement
+                            kubectl rollout status deployment/mon-app -n ${KUBE_NAMESPACE} --timeout=300s
+                            
+                            # Vérifier les pods
+                            kubectl get pods -n ${KUBE_NAMESPACE}
+                            kubectl get services -n ${KUBE_NAMESPACE}
+                        """
+                    }
                 }
             }
         }
+    
     }
 
     post {
