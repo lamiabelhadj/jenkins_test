@@ -1,20 +1,12 @@
 # -----------------------------
 # Stage 1: Build the application
 # -----------------------------
-FROM cgr.dev/chainguard/node:latest-dev AS builder
+FROM node:20-bookworm AS builder
 
-# Switch to root temporarily to set up permissions
-USER root
-RUN mkdir -p /usr/src/app && chown -R node:node /usr/src/app
-
-# Switch back to non-root user (Chainguard runs as 'node' by default)
-USER node
 WORKDIR /usr/src/app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
-
-# Install dependencies (use npm ci if lockfile exists, else fallback)
 RUN if [ -f package-lock.json ]; then npm ci --only=production --omit=dev; \
     else npm install --omit=dev; fi
 
@@ -22,22 +14,32 @@ RUN if [ -f package-lock.json ]; then npm ci --only=production --omit=dev; \
 COPY . .
 
 # -----------------------------
-# Stage 2: Production image
+# Stage 2: Production image with kubectl
 # -----------------------------
-FROM cgr.dev/chainguard/node:latest
+FROM node:20-bookworm-slim
 
-# Same directory for runtime
+# Install kubectl (modern keyring method)
+USER root
+RUN apt-get update && apt-get install -y curl gpg apt-transport-https \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+       | gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] \
+       https://apt.kubernetes.io/ kubernetes-xenial main" \
+       > /etc/apt/sources.list.d/kubernetes.list \
+    && apt-get update && apt-get install -y kubectl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy app from builder
 WORKDIR /usr/src/app
-
-# Copy built app and dependencies from builder
 COPY --from=builder /usr/src/app ./
 
-# Expose the application port
+# Expose port
 EXPOSE 3000
 
-# Optional health check for container orchestration systems
+# Healthcheck (same as yours)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD ["node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+  CMD ["node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
 
-# Use node directly to start the app
+# Start the app
 CMD ["node", "app.js"]
