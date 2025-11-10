@@ -125,6 +125,10 @@ pipeline {
                         # Vérifier l'accès au cluster
                         kubectl cluster-info
                         kubectl get nodes
+                        echo "== Nettoyage d'éventuels anciens déploiements non-Helm =="
+                        kubectl delete deployment my-node-app -n ${KUBE_NAMESPACE} --ignore-not-found=true
+                        kubectl delete service my-node-app-service -n ${KUBE_NAMESPACE} --ignore-not-found=true
+
 
                         # Namespace si besoin
                         kubectl create namespace ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
