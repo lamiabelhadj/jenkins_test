@@ -1,91 +1,10 @@
-// pipeline {
-//     agent any
-
-//     environment {
-//         DOCKER_IMAGE    = 'lamyabelhadj/my-node-app'
-//         DOCKER_TAG      = 'latest'
-//         KUBE_NAMESPACE  = 'mon-app-namespace'
-//     }
-
-//     stages {
-//         stage('Checkout') {
-//             steps {
-//                 echo "Code déjà récupéré par Jenkins via SCM."
-//                 sh 'pwd'
-//                 sh 'ls -R'
-//             }
-//         }
-
-//         stage('Build Docker Image') {
-//             steps {
-//                 sh 'DOCKER_BUILDKIT=0 docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
-//             }
-//         }
-
-//         stage('Push to Docker Hub') {
-//             steps {
-//                 withCredentials([
-//                     usernamePassword(
-//                         credentialsId: 'dockerhub-creds',
-//                         passwordVariable: 'DOCKER_PASSWORD',
-//                         usernameVariable: 'DOCKER_USERNAME'
-//                     )
-//                 ]) {
-//                     sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
-//                     sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
-//                 }
-//             }
-//         }
-
-//         stage('Déployer sur Kubernetes') {
-//             steps {
-//                 withCredentials([
-//                     file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')
-//                 ]) {
-//                     sh '''
-//                         export KUBECONFIG=${KUBECONFIG_FILE}
-
-//                         # Vérifier la connexion
-//                         kubectl cluster-info
-//                         kubectl get nodes
-
-//                         # Créer le namespace s'il n'existe pas
-//                         kubectl create namespace ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-//                         kubectl delete deployment my-node-app -n ${KUBE_NAMESPACE} --ignore-not-found=true
-
-//                         # Déployer les ressources (assure-toi que les fichiers sont dans K8S/)
-//                         kubectl apply -f K8S/ -n ${KUBE_NAMESPACE}
-
-//                         # Vérifier le déploiement (utiliser le BON nom)
-//                         kubectl rollout status deployment/my-node-app -n ${KUBE_NAMESPACE} --timeout=300s
-
-//                         # Vérifier les pods et services
-//                         kubectl get pods -n ${KUBE_NAMESPACE}
-//                         kubectl get services -n ${KUBE_NAMESPACE}
-//                     '''
-//                 }
-//             }
-//         }
-//     }
-
-//     post {
-//         success {
-//             echo 'Pipeline completed successfully!'
-//         }
-//         failure {
-//             echo 'Pipeline failed!'
-//         }
-//     }
-// }
 pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE   = 'lamyabelhadj/my-node-app'
-        DOCKER_TAG     = 'latest'
-        KUBE_NAMESPACE = 'mon-app-namespace'
-        HELM_RELEASE   = 'my-node-app'
-        HELM_CHART_PATH = 'helm/my-node-app'
+        DOCKER_IMAGE    = 'lamyabelhadj/my-node-app'
+        DOCKER_TAG      = 'latest'
+        KUBE_NAMESPACE  = 'mon-app-namespace'
     }
 
     stages {
@@ -99,47 +18,50 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
+                sh 'DOCKER_BUILDKIT=0 docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USERNAME',
-                    passwordVariable: 'DOCKER_PASSWORD'
-                )]) {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        passwordVariable: 'DOCKER_PASSWORD',
+                        usernameVariable: 'DOCKER_USERNAME'
+                    )
+                ]) {
                     sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
                     sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
                 }
             }
         }
 
-        stage('Déployer avec Helm') {
+        stage('Déployer sur Kubernetes') {
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+                withCredentials([
+                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')
+                ]) {
                     sh '''
                         export KUBECONFIG=${KUBECONFIG_FILE}
 
-                        # Vérifier l'accès au cluster
+                        # Vérifier la connexion
                         kubectl cluster-info
                         kubectl get nodes
 
-                        # Namespace si besoin
+                        # Créer le namespace s'il n'existe pas
                         kubectl create namespace ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                        kubectl delete deployment my-node-app -n ${KUBE_NAMESPACE} --ignore-not-found=true
 
-                        # Déploiement/upgrade Helm
-                        helm upgrade --install ${HELM_RELEASE} ${HELM_CHART_PATH} \
-                          --namespace ${KUBE_NAMESPACE} \
-                          --create-namespace \
-                          --set image.repository=${DOCKER_IMAGE} \
-                          --set image.tag=${DOCKER_TAG} \
-                          --set containerPort=3000
+                        # Déployer les ressources (assure-toi que les fichiers sont dans K8S/)
+                        kubectl apply -f K8S/ -n ${KUBE_NAMESPACE}
 
-                        # Vérifications
+                        # Vérifier le déploiement (utiliser le BON nom)
+                        kubectl rollout status deployment/my-node-app -n ${KUBE_NAMESPACE} --timeout=300s
+
+                        # Vérifier les pods et services
                         kubectl get pods -n ${KUBE_NAMESPACE}
-                        kubectl get svc -n ${KUBE_NAMESPACE}
+                        kubectl get services -n ${KUBE_NAMESPACE}
                     '''
                 }
             }
@@ -148,10 +70,10 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline Helm completed successfully!'
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo 'Pipeline with Helm failed!'
+            echo 'Pipeline failed!'
         }
     }
 }
