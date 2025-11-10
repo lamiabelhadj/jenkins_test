@@ -52,8 +52,8 @@ pipeline {
                         # Créer le namespace s'il n'existe pas
                         kubectl create namespace ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
 
-                        # Déployer les ressources (assure-toi que les fichiers sont dans k8s/)
-                        kubectl apply -f k8s/ -n ${KUBE_NAMESPACE}
+                        # Déployer les ressources (assure-toi que les fichiers sont dans K8S/)
+                        kubectl apply -f K8S/ -n ${KUBE_NAMESPACE}
 
                         # Vérifier le déploiement (utiliser le BON nom)
                         kubectl rollout status deployment/my-node-app -n ${KUBE_NAMESPACE} --timeout=300s
