@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'lamyabelhadj/my-node-app'
-        DOCKER_TAG   = 'latest'
-        KUBE_NAMESPACE = 'mon-app-namespace'
+        DOCKER_IMAGE    = 'lamyabelhadj/my-node-app'
+        DOCKER_TAG      = 'latest'
+        KUBE_NAMESPACE  = 'mon-app-namespace'
     }
 
     stages {
@@ -18,63 +18,53 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh "DOCKER_BUILDKIT=0 docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
-                }
+                sh 'DOCKER_BUILDKIT=0 docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .'
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                script {
-                    withCredentials([
-                        usernamePassword(
-                            credentialsId: 'dockerhub-creds',
-                            passwordVariable: 'DOCKER_PASSWORD',
-                            usernameVariable: 'DOCKER_USERNAME'
-                        )
-                    ]) {
-                        sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
-                        sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                    }
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        passwordVariable: 'DOCKER_PASSWORD',
+                        usernameVariable: 'DOCKER_USERNAME'
+                    )
+                ]) {
+                    sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
+                    sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
                 }
             }
         }
+
         stage('Déployer sur Kubernetes') {
             steps {
                 withCredentials([
-                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE'),
-                    usernamePassword(credentialsId: 'dockerhub-creds', 
-                                   passwordVariable: 'DOCKER_PASSWORD', 
-                                   usernameVariable: 'DOCKER_USERNAME')
+                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')
                 ]) {
-                    script {
-                        // Configurer l'accès Kubernetes
-                        sh """
-                            export KUBECONFIG=${KUBECONFIG_FILE}
-                            
-                            # Vérifier la connexion
-                            kubectl cluster-info
-                            kubectl get nodes
-                            
-                            # Créer le namespace s'il n'existe pas
-                            kubectl create namespace ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-                            
-                            # Déployer les ressources
-                            kubectl apply -f k8s/ -n ${KUBE_NAMESPACE}
-                            
-                            # Vérifier le déploiement
-                            kubectl rollout status deployment/mon-app -n ${KUBE_NAMESPACE} --timeout=300s
-                            
-                            # Vérifier les pods
-                            kubectl get pods -n ${KUBE_NAMESPACE}
-                            kubectl get services -n ${KUBE_NAMESPACE}
-                        """
-                    }
+                    sh '''
+                        export KUBECONFIG=${KUBECONFIG_FILE}
+
+                        # Vérifier la connexion
+                        kubectl cluster-info
+                        kubectl get nodes
+
+                        # Créer le namespace s'il n'existe pas
+                        kubectl create namespace ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+
+                        # Déployer les ressources (assure-toi que les fichiers sont dans k8s/)
+                        kubectl apply -f k8s/ -n ${KUBE_NAMESPACE}
+
+                        # Vérifier le déploiement (utiliser le BON nom)
+                        kubectl rollout status deployment/my-node-app -n ${KUBE_NAMESPACE} --timeout=300s
+
+                        # Vérifier les pods et services
+                        kubectl get pods -n ${KUBE_NAMESPACE}
+                        kubectl get services -n ${KUBE_NAMESPACE}
+                    '''
                 }
             }
         }
-    
     }
 
     post {

@@ -41,26 +41,3 @@ spec:
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5
-# apiVersion: apps/v1
-# kind: Deployment
-# metadata:
-#   name: mon-app
-#   namespace: mon-app-namespace
-# spec:
-#   replicas: 2
-#   selector:
-#     matchLabels:
-#       app: mon-app
-#   template:
-#     metadata:
-#       labels:
-#         app: mon-app
-#     spec:
-#       containers:
-#       - name: mon-app
-#         image: votre-dockerhub/mon-app-securisee:latest
-#         ports:
-#         - containerPort: 3000
-#         env:
-#         - name: NODE_ENV
-#           value: "production"
