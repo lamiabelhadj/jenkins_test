@@ -51,6 +51,7 @@ pipeline {
 
                         # Créer le namespace s'il n'existe pas
                         kubectl create namespace ${KUBE_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                        kubectl delete deployment my-node-app -n ${KUBE_NAMESPACE} --ignore-not-found=true
 
                         # Déployer les ressources (assure-toi que les fichiers sont dans K8S/)
                         kubectl apply -f K8S/ -n ${KUBE_NAMESPACE}
